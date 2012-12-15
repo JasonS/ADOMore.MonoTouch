@@ -1,11 +1,11 @@
 ﻿<Properties>
   <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug" />
-  <MonoDevelop.Ide.Workbench ActiveDocument="ADOMore.MonoTouch/DataExtensions.cs">
+  <MonoDevelop.Ide.Workbench ActiveDocument="ADOMore.MonoTouch/Reflector.cs">
     <Files>
       <File FileName="ADOMore.MonoTouch/ReflectionExtensions.cs" Line="27" Column="1" />
-      <File FileName="ADOMore.MonoTouch/Reflector.cs" Line="20" Column="16" />
+      <File FileName="ADOMore.MonoTouch/Reflector.cs" Line="215" Column="1" />
       <File FileName="../jacket-mobile/Source/SolutionInfo.cs" Line="9" Column="34" />
-      <File FileName="ADOMore.MonoTouch/DataExtensions.cs" Line="184" Column="66" />
+      <File FileName="ADOMore.MonoTouch/DataExtensions.cs" Line="4" Column="35" />
     </Files>
   </MonoDevelop.Ide.Workbench>
   <MonoDevelop.Ide.DebuggingService.Breakpoints>
