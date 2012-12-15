@@ -4,160 +4,77 @@ namespace ADOMore
 	using System.Collections.Generic;
 	using System.Data;
 	using System.Linq;
-	using System.Reflection;
 	using System.Text;
 	
-	/// <summary>
-	/// Contains ADO helper methods for converting to and from model objects
-	/// </summary>
-	/// <typeparam name="T">The type of the model object</typeparam>
-	public class Reflector<T>
+	public static class DataExtensions
 	{
-		private List<PropertyInfo> typeProperties;
-		private Type myType = typeof(T);
-		private readonly object typeLocker = new object();
-		
 		/// <summary>
-		/// Gets the collection of properties associated with type <typeparamref name="T"/>
-		protected IEnumerable<PropertyInfo> TypeProperties
+		/// Creates and instance of type T from the provided data reader
+		/// </summary>
+		/// <typeparam name="T">The type of the model to create</typeparam>
+		/// <param name="reader">The data reader</param>
+		/// <param name="readFirst">Should the reader be read before reflecting?</param>
+		/// <returns>The model</returns>
+		public static T ToModel<T>(this IDataReader reader, bool readFirst)
 		{
-			get
-			{
-				this.EnsureTypeProperties();
-				return this.typeProperties.AsReadOnly();
-			}
+			Reflector<T> reflector = new Reflector<T>();
+			return reflector.ToModel(reader, readFirst);
 		}
 		
 		/// <summary>
-		/// Gets a collection of items of type <typeparamref name="T"/> from the provided datareader
+		/// Creates and instance of type T from the provided data record
 		/// </summary>
-		/// <param name="datareader">The datareader</param>
+		/// <typeparam name="T">The type of the model to create</typeparam>
+		/// <param name="dataRecord">The data record</param>
+		/// <returns>The model</returns>
+		public static T ToModel<T>(this IDataRecord dataRecord)
+		{
+			Reflector<T> reflector = new Reflector<T>();
+			return reflector.ToModel(dataRecord);
+		}
+		
+		/// <summary>
+		/// Create a collection of models from the data reader
+		/// </summary>
+		/// <typeparam name="T">The type of the models in the collection</typeparam>
+		/// <param name="reader">A data reader</param>
 		/// <returns>The collection</returns>
-		public IEnumerable<T> ToCollection(IDataReader datareader)
+		public static IEnumerable<T> ToModelCollection<T>(this IDataReader reader)
 		{
-			if (datareader == null)
-			{
-				throw new ArgumentNullException("dataReader", "dataReader cannot be null");
-			}
-			
-			while (datareader.Read())
-			{
-				yield return this.ToModel((IDataRecord)datareader);
-			}
+			Reflector<T> reflector = new Reflector<T>();
+			return reflector.ToCollection(reader);
 		}
 		
 		/// <summary>
-		/// Converts the provided record to an instance of <typeparamref name="T"/>
+		/// Creates a sql command from parameterized sql text and a model of type T
 		/// </summary>
-		/// <param name="dataReader">An <see cref="IDataReader"/></param>
-		/// <param name="readFirst">If true then the reader will be read first</param>
-		/// <returns>An instance of <typeparamref name="T"/></returns>
-		public T ToModel(IDataReader datareader, bool readFirst)
-		{
-			if (readFirst)
-			{
-				datareader.Read();
-			}
-			
-			return this.ToModel((IDataRecord)datareader);
-		}
-		
-		/// <summary>
-		/// Converts the provided record to an instance of <typeparamref name="T"/>
-		/// </summary>
-		/// <param name="dataRecord">An <see cref="IDataRecord"/></param>
-		/// <returns>An instance of <typeparamref name="T"/></returns>
-		public T ToModel(IDataRecord dataRecord)
-		{
-			T model;
-			Dictionary<string, int> fieldDictionary;
-			IEnumerable<PropertyInfo> settable;
-			
-			model = Activator.CreateInstance<T>();
-			settable = this.TypeProperties.Where(p => p.CanWrite).ToArray();
-			fieldDictionary = new Dictionary<string, int>();
-			
-			for (int i = 0, c = dataRecord.FieldCount; i < c; i++)
-			{
-				fieldDictionary.Add(dataRecord.GetName(i).ToUpperInvariant(), i);
-			}
-			
-			foreach (PropertyInfo property in settable)
-			{
-				Type propertyType = property.PropertyType.ResolveSettableType();
-				
-				if (propertyType.IncludeInDbReflection())
-				{
-					string upperName = property.Name.ToUpperInvariant();
-					
-					if (fieldDictionary.ContainsKey(upperName))
-					{
-						object fieldValue = dataRecord.GetValue(fieldDictionary[upperName]);
-						
-						if (fieldValue != null && fieldValue != DBNull.Value)
-						{
-							if (propertyType.IsEnum)
-							{
-								property.SetValue(model, Enum.ToObject(propertyType, fieldValue), null);
-							}
-							else
-							{
-								property.SetValue(model, Convert.ChangeType(fieldValue, propertyType), null);
-							}
-						}
-					}
-				}
-			}
-			
-			return model;
-		}
-		
-		/// <summary>
-		/// Creates a data command from a text command, a POCO object and a data connection
-		/// </summary>
-		/// <param name="sql">The SQL command</param>
-		/// <param name="model">The POCO object</param>
-		/// <param name="connection">The data connection</param>
-		/// <returns>A data command</returns>
-		public IDbCommand CreateCommand(string sql, T model, IDbConnection connection)
-		{
-			return this.CreateCommand(sql, model, connection, CommandType.Text);
-		}
-		
-		/// <summary>
-		/// Creates a data command from a text command, a POCO object and a data connection
-		/// </summary>
-		/// <param name="sql">The SQL command</param>
-		/// <param name="model">The POCO object</param>
-		/// <param name="connection">The data connection</param>
-		/// <param name="commandType">A command type</param>
-		/// <returns>A data command</returns>
-		public IDbCommand CreateCommand(string sql, T model, IDbConnection connection, CommandType commandType)
-		{
-			return this.CreateCommand(sql, model, connection, commandType, null);
-		}
-		
-		/// <summary>
-		/// Creates a data command from a text command, a POCO object and a data connection
-		/// </summary>
-		/// <param name="sql">The SQL command</param>
-		/// <param name="model">The POCO object</param>
-		/// <param name="connection">The data connection</param>
-		/// <param name="commandType">A command type</param>
+		/// <typeparam name="T">The type of the model</typeparam>
+		/// <param name="connection">This db connection</param>
+		/// <param name="sql">A sql string</param>
+		/// <param name="model">The model to inject values from</param>
 		/// <param name="transaction">An optional transaction</param>
-		/// <returns>A data command</returns>
-		public IDbCommand CreateCommand(string sql, T model, IDbConnection connection, CommandType commandType, IDbTransaction transaction)
+		/// <returns>The command</returns>
+		public static IDbCommand CreateCommand<T>(this IDbConnection connection, string sql, T model, IDbTransaction transaction)
+		{
+			Reflector<T> reflector = new Reflector<T>();
+			return reflector.CreateCommand(sql, model, connection, CommandType.Text, transaction);
+		}
+		
+		/// <summary>
+		/// Creates a sql command from a collection of key value pairs
+		/// </summary>
+		/// <param name="connection">This db connection</param>
+		/// <param name="sql">A paraterized sql string</param>
+		/// <param name="keyValues">A collection of key value pairs</param>
+		/// <param name="transaction">An optional transaction</param>
+		/// <returns></returns>
+		public static IDbCommand CreateCommand(this IDbConnection connection, string sql, IDictionary<string, object> keyValues, IDbTransaction transaction)
 		{
 			IDbCommand command = null;
 			
 			if (connection == null)
 			{
 				throw new ArgumentNullException("connection", "connection cannot be null");
-			}
-			
-			if (model == null)
-			{
-				throw new ArgumentNullException("model", "model cannot be null");
 			}
 			
 			if (string.IsNullOrEmpty(sql))
@@ -167,22 +84,25 @@ namespace ADOMore
 			
 			command = connection.CreateCommand();
 			command.CommandText = sql;
-			command.CommandType = commandType;
+			command.CommandType = CommandType.Text;
 			
 			if (transaction != null)
 			{
 				command.Transaction = transaction;
 			}
 			
-			foreach (PropertyInfo property in this.TypeProperties)
+			if (keyValues != null)
 			{
-				Type propertyType = property.PropertyType.ResolveSettableType();
-				
-				if (propertyType.IncludeInDbReflection())
+				foreach (var key in keyValues.Keys)
 				{
+					if (string.IsNullOrWhiteSpace(key))
+					{
+						throw new InvalidOperationException("all keys must have a non-empty value to be added to command parameters");
+					}
+					
 					IDbDataParameter parameter = command.CreateParameter();
-					parameter.ParameterName = string.Concat("@", property.Name);
-					parameter.Value = property.GetValue(model, null);
+					parameter.ParameterName = key.StartsWith("@") ? key : string.Concat("@", key);
+					parameter.Value = keyValues[key];
 					
 					if (parameter.Value == null)
 					{
@@ -194,21 +114,6 @@ namespace ADOMore
 			}
 			
 			return command;
-		}
-		
-		private void EnsureTypeProperties()
-		{
-			if (this.typeProperties == null)
-			{
-				lock (this.typeLocker)
-				{
-					if (this.typeProperties == null)
-					{
-						this.typeProperties = new List<PropertyInfo>();
-						this.typeProperties.AddRange(myType.GetProperties());
-					}
-				}
-			}
 		}
 	}
 }

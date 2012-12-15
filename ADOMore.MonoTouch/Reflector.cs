@@ -39,7 +39,7 @@ namespace ADOMore
 			{
 				throw new ArgumentNullException("dataReader", "dataReader cannot be null");
 			}
-				
+			
 			while (datareader.Read())
 			{
 				yield return this.ToModel((IDataRecord)datareader);
