@@ -15,6 +15,7 @@ namespace ADOMore
 	{
 		private List<PropertyInfo> typeProperties;
 		private Type myType = typeof(T);
+		private readonly object typeLocker = new object();
 		
 		/// <summary>
 		/// Gets the collection of properties associated with type <typeparamref name="T"/>
@@ -22,12 +23,7 @@ namespace ADOMore
 		{
 			get
 			{
-				if (this.typeProperties == null)
-				{
-					this.typeProperties = new List<PropertyInfo>();
-					this.typeProperties.AddRange(myType.GetProperties());
-				}
-				
+				this.EnsureTypeProperties();
 				return this.typeProperties.AsReadOnly();
 			}
 		}
@@ -48,12 +44,10 @@ namespace ADOMore
 			
 			while (datareader.Read())
 			{
-				coll.Add(this.ToModel((IDataRecord)datareader));
+				yield return this.ToModel((IDataRecord)datareader);
 			}
-			
-			return coll.AsReadOnly();
 		}
-
+		
 		/// <summary>
 		/// Converts the provided record to an instance of <typeparamref name="T"/>
 		/// </summary>
@@ -112,7 +106,7 @@ namespace ADOMore
 							{
 								property.SetValue(model, Convert.ChangeType(fieldValue, propertyType), null);
 							}
-						}  
+						}
 					}
 				}
 			}
@@ -202,6 +196,21 @@ namespace ADOMore
 			}
 			
 			return command;
+		}
+		
+		private void EnsureTypeProperties()
+		{
+			if (this.typeProperties == null)
+			{
+				lock (this.typeLocker)
+				{
+					if (this.typeProperties == null)
+					{
+						this.typeProperties = new List<PropertyInfo>();
+						this.typeProperties.AddRange(myType.GetProperties());
+					}
+				}
+			}
 		}
 	}
 }

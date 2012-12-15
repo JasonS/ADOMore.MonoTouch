@@ -41,5 +41,6 @@
   <ItemGroup>
     <Compile Include="ReflectionExtensions.cs" />
     <Compile Include="Reflector.cs" />
+    <Compile Include="DataExtensions.cs" />
   </ItemGroup>
 </Project>
